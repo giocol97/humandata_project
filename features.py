@@ -4,6 +4,22 @@ import scipy.io.wavfile as wav
 import numpy as np
 import os
 import pickle
+from tensorflow.compat.v1 import ConfigProto
+from tensorflow.compat.v1 import Session
+import matplotlib.pyplot as plt
+import warnings
+from sklearn.preprocessing import LabelEncoder
+from keras.utils import np_utils
+from sklearn.model_selection import train_test_split
+from keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
+from keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
+from keras.models import Model
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras import backend as K
+
+
+labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine"]
+dir="..\..\project\speech_commands_v0.02"
 
 def get_features(filename):
     (rate,sig) = wav.read(filename)
@@ -25,7 +41,6 @@ def get_features(filename):
     return new_features
 
 def get_labels_array(labels_data):
-    labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine"]
     new_labels = []
     for label in labels_data:
         label=label[22:]
@@ -44,90 +59,67 @@ def init_dataset(dir_name):
     # Get the list of all files and directories
     # in current working directory
     subdirs = [f.path for f in os.scandir(dir_name) if f.is_dir()]
+
     features=[]
     for subdir in subdirs:
-        files = [f for f in os.listdir(subdir) if os.path.isfile(os.path.join(path, f))]
+        files = [os.path.join(subdir, f) for f in os.listdir(subdir)]
         for file in files:
-            features.append(get_features(file))
-            labels.append(subdir)
-
-    features=np.array(features)
+            if file.count(".wav")>0:
+                file_features=get_features(file)
+                features.append(file_features)
+                labels.append(subdir)
+        break#PER TESTARE CON UNA SOLA DIRECTORY
+    #features=np.array(features)
     labels=np.array(get_labels_array(labels))
     return features, labels
 
-dir="speech_commands_v0.02"
 
-features,labels_data=init_dataset(dir)
+#---------------------------------------PREPROCESSING AND DATA LOADING
 
-print(features.shape)
+features,data_labels=init_dataset(dir)
 '''
-if(os.path.isfile('features.pkl')):
-    with open('features.pkl', 'rb') as f:
-        features = pickle.load(f)
-else:
-    features=init_dataset(dir)
-    with open('features.pkl', 'wb') as f:
-        pickle.dump(features, f)
+features_new=np.zeros(len(features),32,40)
+np.expand_dims(features_new, axis=-1)
+features_new[:,:,:]=features'''
+features=np.array(features).reshape((len(features),-1,32,40))
 
-dir="speech_commands_v0.02"
-
-labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine"]
-
-features=init_dataset(dir)
-
-if(isfile('features.pkl')):
-    with open('features.pkl', 'rb') as f:
-        features = pickle.load(f)
-else:
-    features=init_dataset(dir)
-    with open('features.pkl', 'wb') as f:
-        pickle.dump(features, f)
+x_train, x_valid, y_train, y_valid = train_test_split(features,data_labels,stratify=data_labels,test_size = 0.2,random_state=777,shuffle=True)
 
 
-x_train, x_valid, y_train, y_valid = train_test_split(np.array(all_wave),np.array(y),stratify=y,test_size = 0.2,random_state=777,shuffle=True)
-
+#---------------------------------------NETWORK
 
 K.clear_session()
 
-inputs = Input(shape=(8000,1))
-x = BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(inputs)
+inputs = Input(shape=(32,40,1))
+#x = BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(inputs)
 
-#First Conv1D layer
-x = Conv1D(8,13, padding='valid', activation='relu', strides=1)(x)
-x = MaxPooling1D(3)(x)
-x = Dropout(0.3)(x)
+#First Conv2D layer
+x = Conv2D(64,(20,8), padding='valid', activation='relu', strides=(1,1))(inputs)
+x = MaxPooling2D((1,3))(x)
+#x = Dropout(0.3)(x)
 
-#Second Conv1D layer
-x = Conv1D(16, 11, padding='valid', activation='relu', strides=1)(x)
-x = MaxPooling1D(3)(x)
-x = Dropout(0.3)(x)
+#Second Conv2D layer
+x = Conv2D(64, (10,4), padding='valid', activation='relu', strides=(1,1))(x)
+x = MaxPooling2D((1,1))(x)
+#x = Dropout(0.3)(x)
 
-#Third Conv1D layer
-x = Conv1D(32, 9, padding='valid', activation='relu', strides=1)(x)
-x = MaxPooling1D(3)(x)
-x = Dropout(0.3)(x)
-
-x = BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(x)
-
-x = Bidirectional(CuDNNGRU(128, return_sequences=True), merge_mode='sum')(x)
-x = Bidirectional(CuDNNGRU(128, return_sequences=True), merge_mode='sum')(x)
-x = Bidirectional(CuDNNGRU(128, return_sequences=False), merge_mode='sum')(x)
-
-x = BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(x)
+x = Activation("relu")(x)
 
 #Flatten layer
-# x = Flatten()(x)
+x = Flatten()(x)
 
-#Dense Layer 1
-x = Dense(256, activation='relu')(x)
+x = Dense(128)(x)
+
 outputs = Dense(len(labels), activation="softmax")(x)
 
 model = Model(inputs, outputs)
 model.summary()
 
+#-----------------------------TRAINING
+
 model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
 early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
-checkpoint = ModelCheckpoint('speech2text_model.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
 hist = model.fit(
     x=x_train,
@@ -138,7 +130,12 @@ hist = model.fit(
     validation_data=(x_valid,y_valid)
 )
 
+pyplot.plot(hist.history['loss'], label='train')
+pyplot.plot(hist.history['val_loss'], label='test')
+pyplot.legend()
+pyplot.show()
 
+'''
 from matplotlib import pyplot
 pyplot.plot(fbank_feat)
 pyplot.legend()
