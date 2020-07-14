@@ -54,10 +54,6 @@ def get_labels_array(labels_data):
 
 
 def init_dataset(dir_name):
-    # max number of file per class
-    max_file = 100
-    # index
-    i_file = 0
     # Numpy matrix
     train_test = np.zeros(())
     labels=[]
@@ -68,7 +64,6 @@ def init_dataset(dir_name):
 
     features=[]
     for subdir in subdirs:
-        i_file = 0
         files = [os.path.join(subdir, f) for f in os.listdir(subdir)]
         for file in files:
             if file.count(".wav")>0:
@@ -76,9 +71,6 @@ def init_dataset(dir_name):
                 for frame in file_features:
                     features.append(frame)
                     labels.append(subdir)
-                i_file += 1
-            if i_file >= max_file:
-                #break
         #break#PER TESTARE CON UNA SOLA DIRECTORY
     #features=np.array(features)
     labels=np.array(get_labels_array(labels))
