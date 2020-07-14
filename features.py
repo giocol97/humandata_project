@@ -13,13 +13,15 @@ from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
 from keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
+import tensorflow as tf
 from keras.models import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras import backend as K
 
 
-labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine"]
-dir="..\..\project\speech_commands_v0.02"
+labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine"]
+#dir="..\..\project\speech_commands_v0.02"
+dir="/nfsd/hda/DATASETS/Project_1"
 
 def get_features(filename):
     (rate,sig) = wav.read(filename)
@@ -43,7 +45,7 @@ def get_features(filename):
 def get_labels_array(labels_data):
     new_labels = []
     for label in labels_data:
-        label=label[22:]
+        label=label[len(dir)+1:]
         try:
             new_labels.append(labels.index(label))
         except ValueError:
@@ -52,6 +54,10 @@ def get_labels_array(labels_data):
 
 
 def init_dataset(dir_name):
+    # max number of file per class
+    max_file = 100
+    # index
+    i_file = 0
     # Numpy matrix
     train_test = np.zeros(())
     labels=[]
@@ -62,13 +68,18 @@ def init_dataset(dir_name):
 
     features=[]
     for subdir in subdirs:
+        i_file = 0
         files = [os.path.join(subdir, f) for f in os.listdir(subdir)]
         for file in files:
             if file.count(".wav")>0:
                 file_features=get_features(file)
-                features.append(file_features)
-                labels.append(subdir)
-        break#PER TESTARE CON UNA SOLA DIRECTORY
+                for frame in file_features:
+                    features.append(frame)
+                    labels.append(subdir)
+                i_file += 1
+            if i_file >= max_file:
+                #break
+        #break#PER TESTARE CON UNA SOLA DIRECTORY
     #features=np.array(features)
     labels=np.array(get_labels_array(labels))
     return features, labels
@@ -77,14 +88,12 @@ def init_dataset(dir_name):
 #---------------------------------------PREPROCESSING AND DATA LOADING
 
 features,data_labels=init_dataset(dir)
-'''
-features_new=np.zeros(len(features),32,40)
-np.expand_dims(features_new, axis=-1)
-features_new[:,:,:]=features'''
-features=np.array(features).reshape((len(features),-1,32,40))
 
-x_train, x_valid, y_train, y_valid = train_test_split(features,data_labels,stratify=data_labels,test_size = 0.2,random_state=777,shuffle=True)
+features=np.array(features).reshape((-1,32,40,1))
 
+data_labels_matrix=tf.keras.utils.to_categorical(data_labels,len(labels)+1)
+
+x_train, x_valid, y_train, y_valid = train_test_split(features,data_labels_matrix,stratify=data_labels,test_size = 0.2,random_state=777,shuffle=True)
 
 #---------------------------------------NETWORK
 
@@ -110,7 +119,7 @@ x = Flatten()(x)
 
 x = Dense(128)(x)
 
-outputs = Dense(len(labels), activation="softmax")(x)
+outputs = Dense(len(labels)+1, activation="softmax")(x)
 
 model = Model(inputs, outputs)
 model.summary()
@@ -119,25 +128,20 @@ model.summary()
 
 model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
 early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
-checkpoint = ModelCheckpoint('model.hdf5', monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+checkpoint = ModelCheckpoint('model.hdf5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
 
 hist = model.fit(
     x=x_train,
     y=y_train,
-    epochs=100,
+    epochs=2,
     callbacks=[early_stop, checkpoint],
     batch_size=32,
     validation_data=(x_valid,y_valid)
 )
 
+from matplotlib import pyplot
+
 pyplot.plot(hist.history['loss'], label='train')
 pyplot.plot(hist.history['val_loss'], label='test')
 pyplot.legend()
 pyplot.show()
-
-'''
-from matplotlib import pyplot
-pyplot.plot(fbank_feat)
-pyplot.legend()
-pyplot.show()
-'''
