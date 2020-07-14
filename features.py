@@ -9,11 +9,12 @@ from tensorflow.compat.v1 import Session
 import matplotlib.pyplot as plt
 import warnings
 from sklearn.preprocessing import LabelEncoder
+import tensorflow as tf
+import tensorflow.keras as keras
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
 from keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
-import tensorflow as tf
 from keras.models import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras import backend as K
