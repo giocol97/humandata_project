@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import warnings
 from sklearn.preprocessing import LabelEncoder
 import tensorflow as tf
-import tensorflow.keras as keras
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
@@ -92,36 +91,36 @@ x_train, x_valid, y_train, y_valid = train_test_split(features,data_labels_matri
 
 K.clear_session()
 
-inputs = Input(shape=(32,40,1))
+inputs = tf.keras.Input(shape=(32,40,1))
 #x = BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(inputs)
 
 #First Conv2D layer
-x = Conv2D(64,(20,8), padding='valid', activation='relu', strides=(1,1))(inputs)
-x = MaxPooling2D((1,3))(x)
+x = tf.keras.Conv2D(64,(20,8), padding='valid', activation='relu', strides=(1,1))(inputs)
+x = tf.keras.MaxPooling2D((1,3))(x)
 #x = Dropout(0.3)(x)
 
 #Second Conv2D layer
-x = Conv2D(64, (10,4), padding='valid', activation='relu', strides=(1,1))(x)
-x = MaxPooling2D((1,1))(x)
+x = tf.keras.Conv2D(64, (10,4), padding='valid', activation='relu', strides=(1,1))(x)
+x = tf.keras.MaxPooling2D((1,1))(x)
 #x = Dropout(0.3)(x)
 
-x = Activation("relu")(x)
+x = tf.keras.Activation("relu")(x)
 
 #Flatten layer
-x = Flatten()(x)
+x = tf.keras.Flatten()(x)
 
-x = Dense(128)(x)
+x = tf.keras.Dense(128)(x)
 
-outputs = Dense(len(labels)+1, activation="softmax")(x)
+outputs = tf.keras.Dense(len(labels)+1, activation="softmax")(x)
 
-model = Model(inputs, outputs)
+model = tf.keras.Model(inputs, outputs)
 model.summary()
 
 #-----------------------------TRAINING
 
 model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
-early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
-checkpoint = ModelCheckpoint('model.hdf5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+early_stop = tf.keras.EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
+checkpoint = tf.keras.ModelCheckpoint('model.hdf5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
 
 hist = model.fit(
     x=x_train,
