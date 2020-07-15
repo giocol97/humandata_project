@@ -121,8 +121,8 @@ def init_dataset(dir_name):
                 for frame in file_features:
                     features.append(frame)
                     labels.append(subdir)
-            if(cur==max):
-                break
+            #if(cur==max):
+            #    break
         #break#PER TESTARE CON UNA SOLA DIRECTORY
     #features=np.array(features)
     labels=np.array(get_labels_array(labels))
