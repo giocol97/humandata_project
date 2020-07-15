@@ -10,25 +10,47 @@ from tensorflow.compat.v1 import Session
 import matplotlib.pyplot as plt
 import warnings
 from sklearn.preprocessing import LabelEncoder
-#from tf.keras.utils import np_utils
 from sklearn.model_selection import train_test_split
-#from tf.keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
-#from tf.keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
-#from tf.keras.models import Model
-#from tf.keras.callbacks import EarlyStopping, ModelCheckpoint
+'''from tf.keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
+from tf.keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
+from tf.keras.models import Model
+from tf.keras.callbacks import EarlyStopping, ModelCheckpoint'''
 from tensorflow.keras import backend as K
 
 
 labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine"]
 #dir="..\..\project\speech_commands_v0.02"
 dir="/nfsd/hda/DATASETS/Project_1"
+'''
+def process_path(file_path):
+  label = tf.strings.split(file_path, os.sep)[-2]
+  return tf.io.read_file(file_path), label
+
+def get_dataset(dir):
+    list_ds = tf.data.Dataset.list_files(str(dir+'/*/*'))
+    labeled_ds = list_ds.map(process_path)
+    for image_raw, label_text in labeled_ds.take(1):
+        print(repr(image_raw.numpy()[:100]))
+        print()
+        print(label_text.numpy())
+
+
+
+
+
+
+
+get_dataset(dir)
+exit()'''
+
+
 
 def get_features(filename):
     (rate,sig) = wav.read(filename)
     fbank_feat = logfbank(sig,rate,winlen=0.025, winstep=0.01, nfilt=40)
     new_features = np.zeros((len(fbank_feat),32, 40))
 
-    for i in range(len(fbank_feat)):
+    for i in range(23,len(fbank_feat)-8):
         k=0
         for j in reversed(range(1,24)):
             if(i-j>=0):
@@ -55,6 +77,8 @@ def get_labels_array(labels_data):
 
 def init_dataset(dir_name):
     # Numpy matrix
+    max=10
+
     train_test = np.zeros(())
     labels=[]
     path = os.getcwd()
@@ -64,13 +88,17 @@ def init_dataset(dir_name):
 
     features=[]
     for subdir in subdirs:
+        cur=0
         files = [os.path.join(subdir, f) for f in os.listdir(subdir)]
         for file in files:
             if file.count(".wav")>0:
+                cur+=1
                 file_features=get_features(file)
                 for frame in file_features:
                     features.append(frame)
                     labels.append(subdir)
+            #if(cur==max):
+            #    break
         #break#PER TESTARE CON UNA SOLA DIRECTORY
     #features=np.array(features)
     labels=np.array(get_labels_array(labels))
@@ -95,37 +123,37 @@ inputs = tf.keras.Input(shape=(32,40,1))
 #x = BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(inputs)
 
 #First Conv2D layer
-x = tf.keras.Conv2D(64,(20,8), padding='valid', activation='relu', strides=(1,1))(inputs)
-x = tf.keras.MaxPooling2D((1,3))(x)
+x = tf.keras.layers.Conv2D(64,(20,8), padding='valid', activation='relu', strides=(1,1))(inputs)
+x = tf.keras.layers.MaxPooling2D((1,3))(x)
 #x = Dropout(0.3)(x)
 
 #Second Conv2D layer
-x = tf.keras.Conv2D(64, (10,4), padding='valid', activation='relu', strides=(1,1))(x)
-x = tf.keras.MaxPooling2D((1,1))(x)
+x = tf.keras.layers.Conv2D(64, (10,4), padding='valid', activation='relu', strides=(1,1))(x)
+x = tf.keras.layers.MaxPooling2D((1,1))(x)
 #x = Dropout(0.3)(x)
 
-x = tf.keras.Activation("relu")(x)
+x = tf.keras.layers.Activation("relu")(x)
 
 #Flatten layer
-x = tf.keras.Flatten()(x)
+x = tf.keras.layers.Flatten()(x)
 
-x = tf.keras.Dense(128)(x)
+x = tf.keras.layers.Dense(128)(x)
 
-outputs = tf.keras.Dense(len(labels)+1, activation="softmax")(x)
+outputs = tf.keras.layers.Dense(len(labels)+1, activation="softmax")(x)
 
-model = tf.keras.Model(inputs, outputs)
+model = tf.keras.models.Model(inputs, outputs)
 model.summary()
 
 #-----------------------------TRAINING
 
 model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
-early_stop = tf.keras.EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
-checkpoint = tf.keras.ModelCheckpoint('model.hdf5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
+checkpoint = tf.keras.callbacks.ModelCheckpoint('model.hdf5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
 
 hist = model.fit(
     x=x_train,
     y=y_train,
-    epochs=2,
+    epochs=100,
     callbacks=[early_stop, checkpoint],
     batch_size=32,
     validation_data=(x_valid,y_valid)
