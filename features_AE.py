@@ -11,39 +11,12 @@ import matplotlib.pyplot as plt
 import warnings
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-'''from tf.keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
-from tf.keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
-from tf.keras.models import Model
-from tf.keras.callbacks import EarlyStopping, ModelCheckpoint'''
 from tensorflow.keras import backend as K
 
 
 labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine"]
-#dir="..\..\project\speech_commands_v0.02"
-dir="/nfsd/hda/DATASETS/Project_1"
-'''
-def process_path(file_path):
-  label = tf.strings.split(file_path, os.sep)[-2]
-  return tf.io.read_file(file_path), label
-
-def get_dataset(dir):
-    list_ds = tf.data.Dataset.list_files(str(dir+'/*/*'))
-    labeled_ds = list_ds.map(process_path)
-    for image_raw, label_text in labeled_ds.take(1):
-        print(repr(image_raw.numpy()[:100]))
-        print()
-        print(label_text.numpy())
-
-
-
-
-
-
-
-get_dataset(dir)
-exit()'''
-
-
+dir="..\..\project\speech_commands_v0.02"
+#dir="/nfsd/hda/DATASETS/Project_1"
 
 def get_features(filename):
     (rate,sig) = wav.read(filename)
@@ -63,6 +36,8 @@ def get_features(filename):
                 new_features[i,k,:]=(fbank_feat[i+j])
             k+=1
     return new_features
+
+
 
 def get_labels_array(labels_data):
     new_labels = []
@@ -97,8 +72,8 @@ def init_dataset(dir_name):
                 for frame in file_features:
                     features.append(frame)
                     labels.append(subdir)
-            #if(cur==max):
-            #    break
+            if(cur==max):
+                break
         #break#PER TESTARE CON UNA SOLA DIRECTORY
     #features=np.array(features)
     labels=np.array(get_labels_array(labels))
@@ -116,7 +91,7 @@ data_labels_matrix=tf.keras.utils.to_categorical(data_labels,len(labels)+1)
 x_train, x_valid, y_train, y_valid = train_test_split(features,data_labels_matrix,stratify=data_labels,test_size = 0.2,random_state=777,shuffle=True)
 
 #---------------------------------------NETWORK
-
+'''
 K.clear_session()
 
 inputs = tf.keras.Input(shape=(32,40,1))
@@ -143,20 +118,59 @@ outputs = tf.keras.layers.Dense(len(labels)+1, activation="softmax")(x)
 
 model = tf.keras.models.Model(inputs, outputs)
 model.summary()
+'''
+
+def encoder(input):
+    #encoder
+    #input = 32 x 40
+    conv1 = tf.keras.layers.Conv2D(64, (20, 8), activation='relu', padding='same', strides=(1,1))(input) #32 x 40 x 32
+    conv1 = tf.keras.layers.BatchNormalization()(conv1)
+    pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv1) #16 x 20 x 32
+    conv2 = tf.keras.layers.Conv2D(128, (10, 4), activation='relu', padding='same', strides=(1,1))(pool1) #16 x 20 x 64
+    conv2 = tf.keras.layers.BatchNormalization()(conv2)
+    pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv2) #7 x 7 x 64
+    conv3 = tf.keras.layers.Conv2D(256, (5, 2), activation='relu', padding='same', strides=(1,1))(pool2) #8 x 10 x 128 (small and thick)
+    conv3 = tf.keras.layers.BatchNormalization()(conv3)
+    conv4 = tf.keras.layers.Conv2D(512, (5, 2), activation='relu', padding='same', strides=(1,1))(conv3) #8 x 10 x 256 (small and thick)
+    conv4 = tf.keras.layers.BatchNormalization()(conv4)
+    return conv4
+
+def fc(enco):
+    flat = tf.keras.layers.Flatten()(enco)
+    den = tf.keras.layers.Dense(256, activation='relu')(flat)
+    out = tf.keras.layers.Dense(len(labels)+1, activation='softmax')(den)
+    return out
+
+def decoder(conv4):
+    #decoder
+    conv5 = tf.keras.layers.Conv2D(256, (5, 2), activation='relu', padding='same', strides=(1,1))(conv4) #8 x 10 x 128
+    conv5 = tf.keras.layers.BatchNormalization()(conv5)
+    conv6 = tf.keras.layers.Conv2D(128, (5, 2), activation='relu', padding='same', strides=(1,1))(conv5) #8 x 10 x 64
+    conv6 = tf.keras.layers.BatchNormalization()(conv6)
+    up1 = tf.keras.layers.UpSampling2D((2,2))(conv6) #16 x 20 x 64
+    conv7 = tf.keras.layers.Conv2D(64, (10, 4), activation='relu', padding='same', strides=(1,1))(up1) #16 x 20 x 32
+    conv7 = tf.keras.layers.BatchNormalization()(conv7)
+    up2 = tf.keras.layers.UpSampling2D((2,2))(conv7) # 32 x 40 x 32
+    decoded = tf.keras.layers.Conv2D(1, (20, 8), activation='sigmoid', padding='same', strides=(1,1))(up2) # 32 x 40 x 1
+    return decoded
+
+inputs = tf.keras.Input(shape=(32,40,1))
+
+autoencoder = tf.keras.models.Model(inputs, decoder(encoder(inputs)))
+autoencoder.compile(loss='mean_squared_error', optimizer = tf.keras.optimizers.RMSprop(),metrics=['accuracy'])
 
 #-----------------------------TRAINING
 
-model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
 early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
 checkpoint = tf.keras.callbacks.ModelCheckpoint('model.hdf5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
 
-hist = model.fit(
+hist = autoencoder.fit(
     x=x_train,
-    y=y_train,
-    epochs=100,
+    y=x_train,
+    epochs=10,
     callbacks=[early_stop, checkpoint],
     batch_size=32,
-    validation_data=(x_valid,y_valid)
+    validation_data=(x_valid,x_valid)
 )
 
 from matplotlib import pyplot
