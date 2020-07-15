@@ -23,7 +23,7 @@ source /nfsd/opt/anaconda3/anaconda3.sh
 conda activate /nfsd/signet/hda_env
 
 # run code
-srun python3 /nfsd/hda/colottigio/humandata_project/features.py
+srun python3 /nfsd/hda/colottigio/humandata_project/features_CNN.py
 
 # deactivate environment at the end of the job
 conda deactivate

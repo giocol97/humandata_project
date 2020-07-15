@@ -177,7 +177,7 @@ checkpoint = tf.keras.callbacks.ModelCheckpoint('model.hdf5', monitor='val_accur
 hist = model.fit(
     x=x_train,
     y=y_train,
-    epochs=100,
+    epochs=2,
     callbacks=[early_stop, checkpoint],
     batch_size=32,
     validation_data=(x_valid,y_valid)
