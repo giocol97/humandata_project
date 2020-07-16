@@ -25,6 +25,9 @@ from tensorflow.keras import backend as K
 labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine"]
 #dir="..\..\project\speech_commands_v0.02"
 dir="/nfsd/hda/DATASETS/Project_1"
+#savedir='model.hdf5'
+savedir="/nfsd/hda/colottigio/models/model.hdf5"
+
 ''' USING DATASET
 def process_path(file_path):
   label = tf.strings.split(file_path, os.sep)[-2]
@@ -172,7 +175,7 @@ model.summary()
 
 model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
 early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10, min_delta=0.0001)
-checkpoint = tf.keras.callbacks.ModelCheckpoint('model.hdf5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+checkpoint = tf.keras.callbacks.ModelCheckpoint(savedir, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
 
 hist = model.fit(
     x=x_train,

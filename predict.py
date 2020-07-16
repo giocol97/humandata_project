@@ -79,13 +79,15 @@ def compute_confidence(posteriors):
         confidences[j]=(m)**(1/(n-1))
     return confidences
 
-file="..\..\project\speech_commands_v0.02\\nine\\00b01445_nohash_0.wav"
+file="..\..\project\speech_commands_v0.02\\right\\0bac8a71_nohash_0.wav"
 #file="..\..\project\\nine.wav"
 labels_predicted=[]
 probs=[]
 for frame in get_features(file):
     prob=model.predict(np.array(frame).reshape((-1,32,40,1)))
     probs.append(prob)
+    print(prob)
+
 
 posteriors=np.array(probs).reshape((-1,21))
 posteriors=smooth_posteriors(posteriors)
@@ -93,5 +95,8 @@ confidences=compute_confidence(posteriors)
 
 for i in range(confidences.shape[0]):
     index=np.argmax(probs[i])
+    #if(labels[index]=="Undefined"):
+        #probs[i][0][index]=0
+        #index=np.argmax(probs[i])
     print(labels[index])
     print(confidences[i])
