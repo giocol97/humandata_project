@@ -1,8 +1,8 @@
 import tensorflow as tf
-'''
+
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
 assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-config = tf.config.experimental.set_memory_growth(physical_devices[0], True)'''
+config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 from python_speech_features import mfcc
 from python_speech_features import logfbank
 import scipy.io.wavfile as wav
@@ -23,10 +23,10 @@ from tensorflow.keras import backend as K
 
 
 labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine"]
-#dir="..\..\project\speech_commands_v0.02"
-dir="/nfsd/hda/DATASETS/Project_1"
-#savedir='model.hdf5'
-savedir="/nfsd/hda/colottigio/models/model.hdf5"
+dir="..\..\project\speech_commands_v0.02"
+#dir="/nfsd/hda/DATASETS/Project_1"
+savedir='modelCNN.hdf5'
+#savedir="/nfsd/hda/colottigio/models/modelCNN.hdf5"
 
 ''' USING DATASET
 def process_path(file_path):
@@ -102,7 +102,7 @@ def get_labels_array(labels_data):
 
 def init_dataset(dir_name):
     # Numpy matrix
-    max=10
+    max=80
 
     train_test = np.zeros(())
     labels=[]
@@ -124,23 +124,14 @@ def init_dataset(dir_name):
                 for frame in file_features:
                     features.append(frame)
                     labels.append(subdir)
-            #if(cur==max):
-            #    break
+            if(cur==max):
+                break
         #break#PER TESTARE CON UNA SOLA DIRECTORY
     #features=np.array(features)
     labels=np.array(get_labels_array(labels))
     return features, labels
 
 
-#---------------------------------------PREPROCESSING AND DATA LOADING
-
-features,data_labels=init_dataset(dir)
-
-features=np.array(features).reshape((-1,32,40,1))
-
-data_labels_matrix=tf.keras.utils.to_categorical(data_labels,len(labels)+1)
-
-x_train, x_valid, y_train, y_valid = train_test_split(features,data_labels_matrix,stratify=data_labels,test_size = 0.2,random_state=777,shuffle=True)
 
 #---------------------------------------NETWORK
 
@@ -151,13 +142,14 @@ inputs = tf.keras.Input(shape=(32,40,1))
 
 #First Conv2D layer
 x = tf.keras.layers.Conv2D(64,(20,8), padding='valid', activation='relu', strides=(1,1))(inputs)
+x = tf.keras.layers.Dropout(0.3)(x)
 x = tf.keras.layers.MaxPooling2D((1,3))(x)
-#x = Dropout(0.3)(x)
+
 
 #Second Conv2D layer
 x = tf.keras.layers.Conv2D(64, (10,4), padding='valid', activation='relu', strides=(1,1))(x)
+x = tf.keras.layers.Dropout(0.3)(x)
 x = tf.keras.layers.MaxPooling2D((1,1))(x)
-#x = Dropout(0.3)(x)
 
 x = tf.keras.layers.Activation("relu")(x)
 
@@ -171,6 +163,19 @@ outputs = tf.keras.layers.Dense(len(labels)+1, activation="softmax")(x)
 model = tf.keras.models.Model(inputs, outputs)
 model.summary()
 
+exit()
+
+
+#---------------------------------------PREPROCESSING AND DATA LOADING
+
+features,data_labels=init_dataset(dir)
+
+features=np.array(features).reshape((-1,32,40,1))
+
+data_labels_matrix=tf.keras.utils.to_categorical(data_labels,len(labels)+1)
+
+x_train, x_valid, y_train, y_valid = train_test_split(features,data_labels_matrix,stratify=data_labels,test_size = 0.2,random_state=777,shuffle=True)
+
 #-----------------------------TRAINING
 
 model.compile(loss='categorical_crossentropy',optimizer='nadam',metrics=['accuracy'])
@@ -180,7 +185,7 @@ checkpoint = tf.keras.callbacks.ModelCheckpoint(savedir, monitor='val_accuracy',
 hist = model.fit(
     x=x_train,
     y=y_train,
-    epochs=2,
+    epochs=100,
     callbacks=[early_stop, checkpoint],
     batch_size=32,
     validation_data=(x_valid,y_valid)

@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import warnings
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-
+import librosa
 #from keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
 #from keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
 
@@ -25,7 +25,7 @@ from sklearn.model_selection import train_test_split
 #from keras.callbacks import EarlyStopping, ModelCheckpoint
 #from keras import backend as K
 
-model = load_model('model.hdf5')
+model = load_model('modelCNN_raw.hdf5')
 labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine","Undefined"]
 dir="..\..\project\speech_commands_v0.02"
 
@@ -79,14 +79,69 @@ def compute_confidence(posteriors):
         confidences[j]=(m)**(1/(n-1))
     return confidences
 
-file="..\..\project\speech_commands_v0.02\\right\\0bac8a71_nohash_0.wav"
-#file="..\..\project\\nine.wav"
+def split_file(samples,frame_length,frame_offset):
+    split_samples=[]
+    i = 0
+    while i + frame_length < len(samples):
+        split_samples.append(samples[i:i+frame_length])
+        i += frame_offset
+    return split_samples
+
+
+'''files = [dir + "\\" + f for f in os.listdir(dir)]
+count=0
+for file in files:
+    features=[]
+    count+=1
+    if (count<300):
+        continue
+    if(count>600):
+        exit()
+    samples, sample_rate = librosa.load(file, sr = 16000)
+    samples = librosa.resample(samples, sample_rate, 8000)
+    if(len(samples) != 8000) :
+        new_samples = np.zeros((8000))
+        new_samples[:len(samples)]=np.array(samples).reshape((len(samples)))
+    else:
+        new_samples = np.array(samples)
+    features=np.array(new_samples).reshape(-1,8000,1)
+    prob=model.predict(features)
+    index=np.argmax(prob)
+    print(labels[index])
+'''
+
+#dir="..\..\project\speech_commands_v0.02\\dog"
+file="..\..\project\\yes.wav"
 labels_predicted=[]
 probs=[]
+
+samples, sample_rate = librosa.load(file, sr = 16000)
+samples = librosa.resample(samples, sample_rate, 8000)
+
+frame_length=8000
+frame_offset=1000
+
+samples=split_file(samples,frame_length,frame_offset)
+
+for frame in samples:
+    prob=model.predict(np.array(frame).reshape((-1,8000,1)))
+    probs.append(prob)
+
+
+posteriors=np.array(probs).reshape((-1,21))
+posteriors=smooth_posteriors(posteriors)
+confidences=compute_confidence(posteriors)
+
+for i in range(confidences.shape[0]):
+    index=np.argmax(probs[i])
+    print(labels[index])
+    print(confidences[i])
+
+
+'''
 for frame in get_features(file):
     prob=model.predict(np.array(frame).reshape((-1,32,40,1)))
     probs.append(prob)
-    print(prob)
 
 
 posteriors=np.array(probs).reshape((-1,21))
@@ -100,3 +155,4 @@ for i in range(confidences.shape[0]):
         #index=np.argmax(probs[i])
     print(labels[index])
     print(confidences[i])
+'''
