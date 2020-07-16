@@ -23,7 +23,7 @@ import librosa
 labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine"]
 dir="..\..\project\speech_commands_v0.02"
 #dir="/nfsd/hda/DATASETS/Project_1"
-savedir='modelCNN.hdf5'
+savedir='modelCNN_sainath.hdf5'
 #savedir="/nfsd/hda/colottigio/models/modelCNN.hdf5"
 
 def get_features(filename):
@@ -110,26 +110,15 @@ inputs = tf.keras.layers.Input(shape=(8000,1))
 x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(inputs)
 
 #First Conv1D layer
-x = tf.keras.layers.Conv1D(8,13, padding='valid', activation='relu', strides=1)(x)
+x = tf.keras.layers.Conv1D(64,20, padding='valid', activation='relu', strides=1)(x)
 x = tf.keras.layers.MaxPooling1D(3)(x)
 x = tf.keras.layers.Dropout(0.3)(x)
-
-#Second Conv1D layer
-x = tf.keras.layers.Conv1D(16, 11, padding='valid', activation='relu', strides=1)(x)
-x = tf.keras.layers.MaxPooling1D(3)(x)
-x = tf.keras.layers.Dropout(0.3)(x)
-
-#Third Conv1D layer
-x = tf.keras.layers.Conv1D(32, 9, padding='valid', activation='relu', strides=1)(x)
-x = tf.keras.layers.MaxPooling1D(3)(x)
-x = tf.keras.layers.Dropout(0.3)(x)
-
-x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(x)
 
 x= tf.keras.layers.Flatten()(x)
 
-#Dense Layer 1
-x = tf.keras.layers.Dense(256, activation='relu')(x)
+x = tf.keras.layers.Dense(128, activation='relu')(x)
+
+x = tf.keras.layers.Dense(128, activation='relu')(x)
 outputs = tf.keras.layers.Dense(len(labels)+1, activation="softmax")(x)
 
 model = tf.keras.models.Model(inputs, outputs)
