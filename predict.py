@@ -18,6 +18,7 @@ import warnings
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 import librosa
+import sklearn.metrics
 #from keras.layers import Bidirectional, BatchNormalization, CuDNNGRU, TimeDistributed
 #from keras.layers import Dense, Dropout, Flatten, Conv2D, Input, MaxPooling2D, Activation
 
@@ -25,8 +26,8 @@ import librosa
 #from keras.callbacks import EarlyStopping, ModelCheckpoint
 #from keras import backend as K
 
-model = load_model('modelCNN_raw.hdf5')
-labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine","Undefined"]
+model = load_model('funziona/modelCNN_raw.hdf5')
+labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine","undefined"]
 dir="..\..\project\speech_commands_v0.02"
 
 
@@ -87,28 +88,45 @@ def split_file(samples,frame_length,frame_offset):
         i += frame_offset
     return split_samples
 
+dir="..\..\project\speech_commands_v0.02"
+directories = [f.path for f in os.scandir(dir) if f.is_dir()]
+files=[]
+true_labels=[]
+predicted_labels=[]
+for subdir in directories:
+    print(subdir)
+    files = [subdir + "\\" + f for f in os.listdir(subdir)]
+    count=0
+    for file in files:
+        features=[]
+        count+=1
+        if (count<300):
+            continue
+        if(count>350):
+            break
+        samples, sample_rate = librosa.load(file, sr = 16000)
+        samples = librosa.resample(samples, sample_rate, 8000)
+        if(len(samples) != 8000) :
+            new_samples = np.zeros((8000))
+            new_samples[:len(samples)]=np.array(samples).reshape((len(samples)))
+        else:
+            new_samples = np.array(samples)
+        features=np.array(new_samples).reshape(-1,8000,1)
+        prob=model.predict(features)
+        index=np.argmax(prob)
+        predicted_labels.append(index)
+        label=subdir[len(dir)+1:]
+        try:
+            true_labels.append(labels.index(label))
+        except ValueError:
+            true_labels.append(len(labels)-1)
 
-'''files = [dir + "\\" + f for f in os.listdir(dir)]
-count=0
-for file in files:
-    features=[]
-    count+=1
-    if (count<300):
-        continue
-    if(count>600):
-        exit()
-    samples, sample_rate = librosa.load(file, sr = 16000)
-    samples = librosa.resample(samples, sample_rate, 8000)
-    if(len(samples) != 8000) :
-        new_samples = np.zeros((8000))
-        new_samples[:len(samples)]=np.array(samples).reshape((len(samples)))
-    else:
-        new_samples = np.array(samples)
-    features=np.array(new_samples).reshape(-1,8000,1)
-    prob=model.predict(features)
-    index=np.argmax(prob)
-    print(labels[index])
-'''
+conf_matrix=sklearn.metrics.confusion_matrix(true_labels,predicted_labels,normalize="true")
+
+disp = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=labels)
+disp.plot(include_values=True, cmap='viridis', ax=None, xticks_rotation="horizontal", values_format=None)
+plt.show()
+exit()
 
 #dir="..\..\project\speech_commands_v0.02\\dog"
 file="..\..\project\\yes.wav"

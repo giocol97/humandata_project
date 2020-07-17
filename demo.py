@@ -20,8 +20,11 @@ import warnings
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 import librosa
+import noisereduce as nr
+import scipy.signal
 
-model = load_model('modelCNN_raw.hdf5')
+
+model = load_model('funziona/modelCNN_raw.hdf5')
 labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine","Undefined"]
 dir="..\..\project\speech_commands_v0.02"
 file="..\..\project\\yes.wav"
@@ -91,7 +94,7 @@ def get_predictions(samples):
                 last_predictions+=1
             else:
                 last_predictions=0
-            if(last_predictions==1 and labels[indexes[i]]!="Undefined"):
+            if(last_predictions==3 and labels[indexes[i]]!="Undefined"):
                 predicted.append(labels[indexes[i]])
     #print(labels[index])
     #print(confidences[i])
@@ -103,8 +106,9 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 8000
 CHUNK = 8000
-RECORD_SECONDS = 2
-WAVE_OUTPUT_FILENAME = "file.wav"
+RECORD_SECONDS = 1
+WAVE_OUTPUT_FILENAME1 = "file1.wav"
+WAVE_OUTPUT_FILENAME2 = "file2.wav"
 
 audio = pyaudio.PyAudio()
 
@@ -113,20 +117,55 @@ stream = audio.open(format=FORMAT, channels=CHANNELS,
                 rate=RATE, input=True,
                 frames_per_buffer=CHUNK)
 
+print("recording")
+file_to_save=0
+frames_saved1=0
+frames_saved2=0
+frames1 = []
+frames2 = []
+filter=scipy.signal.butter(6,[300/4000,3000/4000],"bandpass",output="sos")
+
+
 while(1):
-  print( "recording")
-  frames = []
   for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
       data = stream.read(CHUNK)
-      frames.append(data)
-
-  waveFile = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-  waveFile.setnchannels(CHANNELS)
-  waveFile.setsampwidth(audio.get_sample_size(FORMAT))
-  waveFile.setframerate(RATE)
-  waveFile.writeframes(b''.join(frames))
-  waveFile.close()
-  samples, sample_rate = librosa.load(WAVE_OUTPUT_FILENAME, sr = 8000)
+      frames1.append(data)
+      frames_saved1+=1
+      if(file_to_save!=0):
+          frames2.append(data)
+          frames_saved2+=1
+      file_to_save+=1
+  if(frames_saved1==2):
+    waveFile = wave.open(WAVE_OUTPUT_FILENAME1, 'wb')
+    waveFile.setnchannels(CHANNELS)
+    waveFile.setsampwidth(audio.get_sample_size(FORMAT))
+    waveFile.setframerate(RATE)
+    waveFile.writeframes(b''.join(frames1))
+    waveFile.close()
+    frames1=[]
+    frames_saved1=0
+  if(frames_saved2==2):
+    waveFile = wave.open(WAVE_OUTPUT_FILENAME2, 'wb')
+    waveFile.setnchannels(CHANNELS)
+    waveFile.setsampwidth(audio.get_sample_size(FORMAT))
+    waveFile.setframerate(RATE)
+    waveFile.writeframes(b''.join(frames2))
+    waveFile.close()
+    frames2=[]
+    frames_saved2=0
+  if(file_to_save==1):
+    continue
+  if(frames_saved1==0):
+    first_WAVE_OUTPUT_FILENAME=WAVE_OUTPUT_FILENAME1
+    #second_WAVE_OUTPUT_FILENAME=WAVE_OUTPUT_FILENAME2
+  else:
+    first_WAVE_OUTPUT_FILENAME=WAVE_OUTPUT_FILENAME2
+    #second_WAVE_OUTPUT_FILENAME=WAVE_OUTPUT_FILENAME1
+  '''samples1, sample_rate = librosa.load(first_WAVE_OUTPUT_FILENAME, sr = 8000)
+  samples2, sample_rate = librosa.load(second_WAVE_OUTPUT_FILENAME, sr = 8000)
+  samples=np.concatenate((samples1,samples2))'''
+  samples, sample_rate = librosa.load(first_WAVE_OUTPUT_FILENAME, sr = 8000)
+  #samples=scipy.signal.sosfilt(filter,samples)
   samples=split_file(samples,frame_length,frame_offset)
   get_predictions(samples)
 

@@ -1,8 +1,8 @@
 import tensorflow as tf
-'''
+
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
 assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-config = tf.config.experimental.set_memory_growth(physical_devices[0], True)'''
+config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 from python_speech_features import mfcc
 from python_speech_features import logfbank
@@ -23,7 +23,7 @@ import librosa
 labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine"]
 dir="..\..\project\speech_commands_v0.02"
 #dir="/nfsd/hda/DATASETS/Project_1"
-savedir='modelRNN.hdf5'
+savedir='modelRNN1.hdf5'
 #savedir="/nfsd/hda/colottigio/models/modelCNN.hdf5"
 
 def get_features(filename):
@@ -86,8 +86,8 @@ def init_dataset(dir_name):
                 features.append(new_samples)
                 labels.append(subdir)
 
-            #if(cur==max):
-            #    break
+            if(cur==max):
+                break
         #break#PER TESTARE CON UNA SOLA DIRECTORY
     features=np.array(features).reshape(-1,8000,1)
     labels=np.array(get_labels_array(labels))
@@ -119,8 +119,6 @@ x = tf.keras.layers.Dropout(0.3)(x)
 
 x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(x)
 
-x = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(128, return_sequences=True), merge_mode='sum')(x)
-x = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(128, return_sequences=True), merge_mode='sum')(x)
 x = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(128, return_sequences=False), merge_mode='sum')(x)
 
 x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=1e-3, center=True, scale=True)(x)
@@ -134,7 +132,6 @@ outputs = tf.keras.layers.Dense(len(labels)+1, activation="softmax")(x)
 
 model = tf.keras.models.Model(inputs, outputs)
 model.summary()
-exit()
 
 #---------------------------------------PREPROCESSING AND DATA LOADING
 
