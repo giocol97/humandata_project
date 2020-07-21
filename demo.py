@@ -24,7 +24,7 @@ import noisereduce as nr
 import scipy.signal
 
 
-model = load_model('funziona/modelCNN_raw.hdf5')
+model = load_model('funziona/modelRNN3.hdf5')
 labels=["Yes", "No", "Up", "Down", "Left","Right", "On", "Off", "Stop", "Go", "Zero", "One", "Two", "Three", "Four","Five", "Six", "Seven", "Eight", "Nine","Undefined"]
 dir="..\..\project\speech_commands_v0.02"
 file="..\..\project\\yes.wav"
@@ -75,6 +75,7 @@ def split_file(samples,frame_length,frame_offset):
 
 def get_predictions(samples):
     labels_predicted=[]
+    number_per_label=[0]*len(labels)
     probs=[]
     for frame in samples:
         prob=model.predict(np.array(frame).reshape((-1,8000,1)))
@@ -89,6 +90,7 @@ def get_predictions(samples):
         indexes.append(np.argmax(probs[i]))
     print(indexes)
     for i in range(len(indexes)):
+        number_per_label[indexes[i]]+=1
         if (i!=0):
             if(indexes[i]==indexes[i-1]):
                 last_predictions+=1
@@ -96,9 +98,14 @@ def get_predictions(samples):
                 last_predictions=0
             if(last_predictions==3 and labels[indexes[i]]!="Undefined"):
                 predicted.append(labels[indexes[i]])
+    number_per_label[-1]=0
+    max_num=number_per_label.index(max(number_per_label))
+    if(max(number_per_label)>3 and labels[max_num] not in predicted):
+        predicted.append(labels[max_num])
     #print(labels[index])
     #print(confidences[i])
-    print(predicted)
+    if(len(predicted)>0):
+        print(predicted)
 
 
 #-------------------------------------------
@@ -124,7 +131,6 @@ frames_saved2=0
 frames1 = []
 frames2 = []
 filter=scipy.signal.butter(6,[300/4000,3000/4000],"bandpass",output="sos")
-
 
 while(1):
   for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):

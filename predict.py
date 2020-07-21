@@ -26,7 +26,7 @@ import sklearn.metrics
 #from keras.callbacks import EarlyStopping, ModelCheckpoint
 #from keras import backend as K
 
-model = load_model('funziona/modelCNN_raw.hdf5')
+model = load_model('funziona/modelRNN2.hdf5')
 labels=["yes", "no", "up", "down", "left","right", "on", "off", "stop", "go", "zero", "one", "two", "three", "four","five", "six", "seven", "eight", "nine","undefined"]
 dir="..\..\project\speech_commands_v0.02"
 
@@ -102,7 +102,7 @@ for subdir in directories:
         count+=1
         if (count<300):
             continue
-        if(count>350):
+        if(count>330):
             break
         samples, sample_rate = librosa.load(file, sr = 16000)
         samples = librosa.resample(samples, sample_rate, 8000)
@@ -126,6 +126,14 @@ conf_matrix=sklearn.metrics.confusion_matrix(true_labels,predicted_labels,normal
 disp = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=labels)
 disp.plot(include_values=True, cmap='viridis', ax=None, xticks_rotation="horizontal", values_format=None)
 plt.show()
+
+right=0
+for i in range(len(true_labels)):
+    if(true_labels[i]==predicted_labels[i]):
+        right+=1
+
+test_accuracy=right/len(true_labels)
+print(test_accuracy)
 exit()
 
 #dir="..\..\project\speech_commands_v0.02\\dog"
